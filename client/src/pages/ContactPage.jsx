@@ -1,19 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, Mail, Github, Linkedin, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 import SectionHeader from '../components/common/SectionHeader';
-import { TEMP_PROFILE } from '../utils/mockPortfolioData';
+import { portfolioService } from '../services/portfolioService';
 
 export default function ContactPage() {
+    const [profile, setProfile] = useState(null);
     const [form, setForm] = useState({
         name: '',
         email: '',
         subject: '',
         message: '',
-        website: '', // Honeypot field untuk anti-spam
+        website: '',
     });
 
     const [errors, setErrors] = useState({});
     const [status, setStatus] = useState({ submitting: false, type: null, text: '' });
+
+    useEffect(() => {
+        portfolioService
+            .getProfile()
+            .then((data) => setProfile(data))
+            .catch(() => { });
+    }, []);
 
     const validate = () => {
         const nextErrors = {};
@@ -47,15 +55,14 @@ export default function ContactPage() {
 
         setStatus({ submitting: true, type: null, text: '' });
 
-        // Simulasi UI response pada Phase 02 — akan dihubungkan ke POST /api/v1/contact pada Phase 06
         setTimeout(() => {
             setStatus({
                 submitting: false,
                 type: 'success',
-                text: 'Your message has been validated and queued. Full backend SMTP & MongoDB delivery will activate in Phase 06.',
+                text: 'Your message has been validated. Full backend SMTP & MongoDB delivery will activate in Phase 06.',
             });
             setForm({ name: '', email: '', subject: '', message: '', website: '' });
-        }, 600);
+        }, 500);
     };
 
     return (
@@ -69,7 +76,6 @@ export default function ContactPage() {
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                {/* CONTACT DETAILS */}
                 <div className="lg:col-span-5 space-y-8">
                     <div className="border border-[#D9D4C9]/15 p-6 sm:p-8 space-y-6">
                         <div>
@@ -77,60 +83,64 @@ export default function ContactPage() {
                                 Direct Email
                             </p>
                             <a
-                                href={`mailto:${TEMP_PROFILE.email}`}
+                                href={`mailto:${profile?.email || 'contact@joseph.dev'}`}
                                 className="inline-flex items-center gap-2.5 text-base font-medium hover:text-[#657568] transition-colors"
                             >
                                 <Mail className="w-4 h-4 text-[#657568]" />
-                                <span>{TEMP_PROFILE.email}</span>
+                                <span>{profile?.email || 'contact@joseph.dev'}</span>
                             </a>
                         </div>
 
-                        <div>
-                            <p className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-2">
-                                Base Location
-                            </p>
-                            <p className="inline-flex items-center gap-2.5 text-sm text-[#A5A39D]">
-                                <MapPin className="w-4 h-4 text-[#657568]" />
-                                <span>{TEMP_PROFILE.location}</span>
-                            </p>
-                        </div>
+                        {profile?.location && (
+                            <div>
+                                <p className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-2">
+                                    Base Location
+                                </p>
+                                <p className="inline-flex items-center gap-2.5 text-sm text-[#A5A39D]">
+                                    <MapPin className="w-4 h-4 text-[#657568]" />
+                                    <span>{profile.location}</span>
+                                </p>
+                            </div>
+                        )}
 
                         <div className="pt-4 border-t border-[#D9D4C9]/15">
                             <p className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-3">
                                 Developer Profiles
                             </p>
                             <div className="flex flex-wrap gap-3">
-                                <a
-                                    href={TEMP_PROFILE.socialLinks.github}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-2 border border-[#D9D4C9]/25 px-4 py-2 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] transition-colors"
-                                >
-                                    <Github className="w-4 h-4" />
-                                    <span>GitHub</span>
-                                </a>
-                                <a
-                                    href={TEMP_PROFILE.socialLinks.linkedin}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-2 border border-[#D9D4C9]/25 px-4 py-2 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] transition-colors"
-                                >
-                                    <Linkedin className="w-4 h-4" />
-                                    <span>LinkedIn</span>
-                                </a>
+                                {profile?.socialLinks?.github && (
+                                    <a
+                                        href={profile.socialLinks.github}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-2 border border-[#D9D4C9]/25 px-4 py-2 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] transition-colors"
+                                    >
+                                        <Github className="w-4 h-4" />
+                                        <span>GitHub</span>
+                                    </a>
+                                )}
+                                {profile?.socialLinks?.linkedin && (
+                                    <a
+                                        href={profile.socialLinks.linkedin}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-2 border border-[#D9D4C9]/25 px-4 py-2 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] transition-colors"
+                                    >
+                                        <Linkedin className="w-4 h-4" />
+                                        <span>LinkedIn</span>
+                                    </a>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* CONTACT FORM */}
                 <div className="lg:col-span-7">
                     <form
                         onSubmit={handleSubmit}
                         noValidate
                         className="border border-[#D9D4C9]/15 p-6 sm:p-10 space-y-6"
                     >
-                        {/* Honeypot field tersembunyi untuk bot spam */}
                         <div className="hidden" aria-hidden="true">
                             <label htmlFor="website">Website</label>
                             <input
@@ -225,8 +235,8 @@ export default function ContactPage() {
                         {status.text && (
                             <div
                                 className={`p-4 border flex items-start gap-3 text-sm ${status.type === 'success'
-                                        ? 'border-[#657568] bg-[#657568]/15 text-[#F2F0EA]'
-                                        : 'border-red-500/40 bg-red-950/20 text-red-300'
+                                    ? 'border-[#657568] bg-[#657568]/15 text-[#F2F0EA]'
+                                    : 'border-red-500/40 bg-red-950/20 text-red-300'
                                     }`}
                             >
                                 {status.type === 'success' ? (

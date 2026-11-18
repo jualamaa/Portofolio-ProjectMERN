@@ -1,47 +1,56 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, ExternalLink, Award, Calendar, Hash } from 'lucide-react';
 import SectionHeader from '../components/common/SectionHeader';
 import ModalLightbox from '../components/ui/ModalLightbox';
-import { EmptyState } from '../components/common/StateFeedback';
-import { TEMP_CERTIFICATES } from '../utils/mockPortfolioData';
-
-const ITEMS_PER_PAGE = 6;
+import { LoadingSkeleton, EmptyState, ErrorState } from '../components/common/StateFeedback';
+import { portfolioService } from '../services/portfolioService';
 
 export default function CertificatesPage() {
+    const [certificates, setCertificates] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [years, setYears] = useState([]);
+    const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedYear, setSelectedYear] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [activeCert, setActiveCert] = useState(null);
 
-    const categories = useMemo(
-        () => ['all', ...new Set(TEMP_CERTIFICATES.map((c) => c.category.name))],
-        []
-    );
+    useEffect(() => {
+        portfolioService
+            .getCategories('certificate')
+            .then((cats) => setCategories(cats || []))
+            .catch(() => { });
+    }, []);
 
-    const years = useMemo(
-        () =>
-            ['all', ...new Set(TEMP_CERTIFICATES.map((c) => new Date(c.issuedAt).getFullYear().toString()))],
-        []
-    );
+    const fetchCertificates = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await portfolioService.getCertificates({
+                search: searchQuery,
+                category: selectedCategory,
+                year: selectedYear,
+                page: currentPage,
+                limit: 6,
+            });
+            setCertificates(res.data || []);
+            setYears(res.availableYears || []);
+            setPagination(res.pagination || { page: 1, pages: 1, total: 0 });
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to load certificates.');
+        } finally {
+            setLoading(false);
+        }
+    }, [searchQuery, selectedCategory, selectedYear, currentPage]);
 
-    const filteredCerts = useMemo(() => {
-        return TEMP_CERTIFICATES.filter((cert) => {
-            const matchesSearch =
-                cert.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                cert.issuer.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesCat = selectedCategory === 'all' || cert.category.name === selectedCategory;
-            const certYear = new Date(cert.issuedAt).getFullYear().toString();
-            const matchesYear = selectedYear === 'all' || certYear === selectedYear;
-            return matchesSearch && matchesCat && matchesYear;
-        });
-    }, [searchQuery, selectedCategory, selectedYear]);
-
-    const totalPages = Math.max(1, Math.ceil(filteredCerts.length / ITEMS_PER_PAGE));
-    const paginatedCerts = filteredCerts.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    useEffect(() => {
+        fetchCertificates();
+    }, [fetchCertificates]);
 
     return (
         <div className="editorial-container py-16 sm:py-24">
@@ -79,9 +88,10 @@ export default function CertificatesPage() {
                         aria-label="Filter by category"
                         className="w-full bg-white/60 border border-[#242629]/20 px-4 py-3 text-sm focus:outline-none focus:border-[#657568]"
                     >
+                        <option value="all">All Categories</option>
                         {categories.map((cat) => (
-                            <option key={cat} value={cat}>
-                                {cat === 'all' ? 'All Categories' : cat}
+                            <option key={cat._id} value={cat.slug}>
+                                {cat.name}
                             </option>
                         ))}
                     </select>
@@ -97,17 +107,22 @@ export default function CertificatesPage() {
                         aria-label="Filter by year"
                         className="w-full bg-white/60 border border-[#242629]/20 px-4 py-3 text-sm focus:outline-none focus:border-[#657568]"
                     >
+                        <option value="all">All Years</option>
                         {years.map((yr) => (
                             <option key={yr} value={yr}>
-                                {yr === 'all' ? 'All Years' : yr}
+                                {yr}
                             </option>
                         ))}
                     </select>
                 </div>
             </div>
 
-            {/* CERTIFICATE GALLERY */}
-            {paginatedCerts.length === 0 ? (
+            {/* STATES & GALLERY */}
+            {loading ? (
+                <LoadingSkeleton count={3} theme="light" />
+            ) : error ? (
+                <ErrorState message={error} onRetry={fetchCertificates} theme="light" />
+            ) : certificates.length === 0 ? (
                 <EmptyState
                     title="No matching certificates"
                     description="Try adjusting your search keywords, category, or year filter."
@@ -115,7 +130,7 @@ export default function CertificatesPage() {
                 />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {paginatedCerts.map((cert) => (
+                    {certificates.map((cert) => (
                         <article
                             key={cert._id}
                             onClick={() => setActiveCert(cert)}
@@ -124,7 +139,7 @@ export default function CertificatesPage() {
                             <div>
                                 <div className="aspect-[16/11] overflow-hidden bg-[#D9D4C9]/40 border-b border-[#242629]/15">
                                     <img
-                                        src={cert.image.url}
+                                        src={cert.image?.url}
                                         alt={cert.title}
                                         loading="lazy"
                                         className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
@@ -133,7 +148,7 @@ export default function CertificatesPage() {
 
                                 <div className="p-6">
                                     <div className="flex items-center justify-between text-xs font-mono text-[#657568] mb-2">
-                                        <span>{cert.category.name}</span>
+                                        <span>{cert.category?.name}</span>
                                         <span>
                                             {new Date(cert.issuedAt).toLocaleDateString('en-US', {
                                                 month: 'short',
@@ -159,9 +174,9 @@ export default function CertificatesPage() {
             )}
 
             {/* PAGINATION */}
-            {totalPages > 1 && (
+            {pagination.pages > 1 && (
                 <div className="mt-12 flex items-center justify-center gap-2">
-                    {Array.from({ length: totalPages }).map((_, idx) => {
+                    {Array.from({ length: pagination.pages }).map((_, idx) => {
                         const pageNum = idx + 1;
                         return (
                             <button
@@ -169,8 +184,8 @@ export default function CertificatesPage() {
                                 type="button"
                                 onClick={() => setCurrentPage(pageNum)}
                                 className={`w-10 h-10 font-mono text-xs border transition-colors ${currentPage === pageNum
-                                        ? 'bg-[#17191C] text-[#F2F0EA] border-[#17191C]'
-                                        : 'border-[#242629]/20 hover:border-[#657568]'
+                                    ? 'bg-[#17191C] text-[#F2F0EA] border-[#17191C]'
+                                    : 'border-[#242629]/20 hover:border-[#657568]'
                                     }`}
                             >
                                 {pageNum}
@@ -191,7 +206,7 @@ export default function CertificatesPage() {
                     <div className="space-y-6">
                         <div className="border border-[#242629]/20 bg-white">
                             <img
-                                src={activeCert.image.url}
+                                src={activeCert.image?.url}
                                 alt={activeCert.title}
                                 className="w-full max-h-[55vh] object-contain mx-auto"
                             />

@@ -1,9 +1,53 @@
+import { useEffect, useState, useCallback } from 'react';
 import { Github, Linkedin, Mail, MapPin, GraduationCap, Compass } from 'lucide-react';
 import SectionHeader from '../components/common/SectionHeader';
-import { TEMP_PROFILE, TEMP_SKILLS } from '../utils/mockPortfolioData';
+import { LoadingSkeleton, ErrorState } from '../components/common/StateFeedback';
+import { portfolioService } from '../services/portfolioService';
 
 export default function AboutPage() {
-    const skillCategories = [...new Set(TEMP_SKILLS.map((s) => s.category))];
+    const [profile, setProfile] = useState(null);
+    const [skills, setSkills] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const fetchAboutData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const [profileData, skillsData] = await Promise.all([
+                portfolioService.getProfile(),
+                portfolioService.getSkills(),
+            ]);
+            setProfile(profileData);
+            setSkills(skillsData || []);
+        } catch (err) {
+            setError(err.response?.data?.message || 'Unable to load profile details.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchAboutData();
+    }, [fetchAboutData]);
+
+    if (loading) {
+        return (
+            <div className="editorial-container py-20">
+                <LoadingSkeleton count={2} theme="light" />
+            </div>
+        );
+    }
+
+    if (error || !profile) {
+        return (
+            <div className="editorial-container py-20">
+                <ErrorState message={error || 'Profile data unavailable.'} onRetry={fetchAboutData} theme="light" />
+            </div>
+        );
+    }
+
+    const skillCategories = [...new Set(skills.map((s) => s.category))];
 
     return (
         <div className="editorial-container py-16 sm:py-24">
@@ -19,17 +63,21 @@ export default function AboutPage() {
             <section className="grid grid-cols-1 lg:grid-cols-12 gap-12 pb-20 border-b border-[#242629]/15">
                 <div className="lg:col-span-4">
                     <div className="border border-[#242629]/20 p-3 bg-white/40">
-                        <img
-                            src={TEMP_PROFILE.profileImage}
-                            alt={TEMP_PROFILE.name}
-                            className="w-full aspect-[4/5] object-cover"
-                        />
+                        {profile.profileImage?.url && (
+                            <img
+                                src={profile.profileImage.url}
+                                alt={profile.name}
+                                className="w-full aspect-[4/5] object-cover"
+                            />
+                        )}
                         <div className="pt-3 mt-3 border-t border-[#242629]/15 space-y-1 text-xs font-mono">
-                            <p className="font-semibold">{TEMP_PROFILE.name}</p>
-                            <p className="text-[#242629]/70 flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5 text-[#657568]" />
-                                {TEMP_PROFILE.location}
-                            </p>
+                            <p className="font-semibold">{profile.name}</p>
+                            {profile.location && (
+                                <p className="text-[#242629]/70 flex items-center gap-1.5">
+                                    <MapPin className="w-3.5 h-3.5 text-[#657568]" />
+                                    {profile.location}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -37,46 +85,49 @@ export default function AboutPage() {
                 <div className="lg:col-span-8 flex flex-col justify-between space-y-8">
                     <div className="space-y-5">
                         <span className="font-mono text-xs uppercase tracking-widest text-[#657568]">
-                            {TEMP_PROFILE.title}
+                            {profile.title}
                         </span>
                         <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight leading-snug">
-                            Focused on building practical fullstack web systems and bridging software with real-world hardware.
+                            {profile.headline}
                         </h2>
-                        <p className="text-[#242629]/80 text-base leading-relaxed">
-                            {TEMP_PROFILE.bio}
-                        </p>
-                        <p className="text-[#242629]/80 text-base leading-relaxed">
-                            My technical interests span fullstack JavaScript architecture (MERN), relational database modeling, cloud infrastructure, and embedded IoT automation. Rather than treating tools as buzzwords, I focus on understanding how data flows securely from user interfaces to backend APIs and persistent storage.
+                        <p className="text-[#242629]/80 text-base leading-relaxed whitespace-pre-line">
+                            {profile.bio}
                         </p>
                     </div>
 
                     {/* Social Links */}
                     <div className="pt-6 border-t border-[#242629]/15 flex flex-wrap items-center gap-4">
-                        <a
-                            href={TEMP_PROFILE.socialLinks.github}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 border border-[#242629]/25 px-4 py-2.5 text-xs font-mono uppercase tracking-wider hover:bg-[#17191C] hover:text-[#F2F0EA] transition-colors"
-                        >
-                            <Github className="w-4 h-4" />
-                            <span>GitHub</span>
-                        </a>
-                        <a
-                            href={TEMP_PROFILE.socialLinks.linkedin}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 border border-[#242629]/25 px-4 py-2.5 text-xs font-mono uppercase tracking-wider hover:bg-[#17191C] hover:text-[#F2F0EA] transition-colors"
-                        >
-                            <Linkedin className="w-4 h-4" />
-                            <span>LinkedIn</span>
-                        </a>
-                        <a
-                            href={`mailto:${TEMP_PROFILE.email}`}
-                            className="inline-flex items-center gap-2 border border-[#242629]/25 px-4 py-2.5 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] hover:text-[#F2F0EA] transition-colors"
-                        >
-                            <Mail className="w-4 h-4" />
-                            <span>{TEMP_PROFILE.email}</span>
-                        </a>
+                        {profile.socialLinks?.github && (
+                            <a
+                                href={profile.socialLinks.github}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 border border-[#242629]/25 px-4 py-2.5 text-xs font-mono uppercase tracking-wider hover:bg-[#17191C] hover:text-[#F2F0EA] transition-colors"
+                            >
+                                <Github className="w-4 h-4" />
+                                <span>GitHub</span>
+                            </a>
+                        )}
+                        {profile.socialLinks?.linkedin && (
+                            <a
+                                href={profile.socialLinks.linkedin}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 border border-[#242629]/25 px-4 py-2.5 text-xs font-mono uppercase tracking-wider hover:bg-[#17191C] hover:text-[#F2F0EA] transition-colors"
+                            >
+                                <Linkedin className="w-4 h-4" />
+                                <span>LinkedIn</span>
+                            </a>
+                        )}
+                        {profile.email && (
+                            <a
+                                href={`mailto:${profile.email}`}
+                                className="inline-flex items-center gap-2 border border-[#242629]/25 px-4 py-2.5 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] hover:text-[#F2F0EA] transition-colors"
+                            >
+                                <Mail className="w-4 h-4" />
+                                <span>{profile.email}</span>
+                            </a>
+                        )}
                     </div>
                 </div>
             </section>
@@ -91,12 +142,14 @@ export default function AboutPage() {
                     <h3 className="font-display text-2xl font-bold">Academic Background</h3>
 
                     <div className="space-y-6">
-                        {TEMP_PROFILE.education.map((edu, idx) => (
-                            <div key={idx} className="border border-[#242629]/15 p-6 bg-white/30">
+                        {profile.education?.map((edu, idx) => (
+                            <div key={edu._id || idx} className="border border-[#242629]/15 p-6 bg-white/30">
                                 <span className="font-mono text-xs text-[#657568]">{edu.period}</span>
                                 <h4 className="font-display text-lg font-bold mt-1">{edu.institution}</h4>
                                 <p className="text-sm font-medium text-[#242629]/85 mt-0.5">{edu.program}</p>
-                                <p className="text-sm text-[#242629]/70 mt-3 leading-relaxed">{edu.description}</p>
+                                {edu.description && (
+                                    <p className="text-sm text-[#242629]/70 mt-3 leading-relaxed">{edu.description}</p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -110,8 +163,8 @@ export default function AboutPage() {
                     <h3 className="font-display text-2xl font-bold">Technical Learning Journey</h3>
 
                     <div className="border-l border-[#242629]/25 ml-2 space-y-8 pl-6">
-                        {TEMP_PROFILE.learningJourney.map((step, idx) => (
-                            <div key={idx} className="relative">
+                        {profile.learningJourney?.map((step, idx) => (
+                            <div key={step._id || idx} className="relative">
                                 <span className="absolute -left-[29px] top-1.5 w-2.5 h-2.5 bg-[#657568]" />
                                 <span className="font-mono text-xs text-[#657568] font-semibold">{step.year}</span>
                                 <h4 className="font-display text-lg font-bold mt-1">{step.topic}</h4>
@@ -140,14 +193,16 @@ export default function AboutPage() {
                                 {category}
                             </h4>
                             <div className="divide-y divide-[#242629]/10">
-                                {TEMP_SKILLS.filter((s) => s.category === category).map((skill) => (
-                                    <div key={skill._id} className="py-3 flex items-center justify-between text-sm">
-                                        <span className="font-medium">{skill.name}</span>
-                                        <span className="font-mono text-xs px-2.5 py-0.5 border border-[#242629]/20 text-[#242629]/80">
-                                            {skill.level}
-                                        </span>
-                                    </div>
-                                ))}
+                                {skills
+                                    .filter((s) => s.category === category)
+                                    .map((skill) => (
+                                        <div key={skill._id} className="py-3 flex items-center justify-between text-sm">
+                                            <span className="font-medium">{skill.name}</span>
+                                            <span className="font-mono text-xs px-2.5 py-0.5 border border-[#242629]/20 text-[#242629]/80">
+                                                {skill.proficiency}
+                                            </span>
+                                        </div>
+                                    ))}
                             </div>
                         </div>
                     ))}

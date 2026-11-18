@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -9,17 +9,42 @@ import {
     Maximize2,
 } from 'lucide-react';
 import ModalLightbox from '../components/ui/ModalLightbox';
-import { EmptyState } from '../components/common/StateFeedback';
-import { TEMP_PROJECTS } from '../utils/mockPortfolioData';
+import { LoadingSkeleton, EmptyState } from '../components/common/StateFeedback';
+import { portfolioService } from '../services/portfolioService';
 
 export default function ProjectDetailPage() {
     const { slug } = useParams();
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [notFound, setNotFound] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
 
-    const projectIndex = TEMP_PROJECTS.findIndex((p) => p.slug === slug);
-    const project = TEMP_PROJECTS[projectIndex];
+    const fetchDetail = useCallback(async () => {
+        setLoading(true);
+        setNotFound(false);
+        try {
+            const result = await portfolioService.getProjectBySlug(slug);
+            setData(result);
+        } catch {
+            setNotFound(true);
+        } finally {
+            setLoading(false);
+        }
+    }, [slug]);
 
-    if (!project) {
+    useEffect(() => {
+        fetchDetail();
+    }, [fetchDetail]);
+
+    if (loading) {
+        return (
+            <div className="editorial-container py-20">
+                <LoadingSkeleton count={2} theme="light" />
+            </div>
+        );
+    }
+
+    if (notFound || !data?.project) {
         return (
             <div className="editorial-container py-24">
                 <EmptyState
@@ -40,14 +65,10 @@ export default function ProjectDetailPage() {
         );
     }
 
-    const prevProject = projectIndex > 0 ? TEMP_PROJECTS[projectIndex - 1] : null;
-    const nextProject =
-        projectIndex < TEMP_PROJECTS.length - 1 ? TEMP_PROJECTS[projectIndex + 1] : null;
-    const relatedProjects = TEMP_PROJECTS.filter((p) => p.slug !== slug).slice(0, 2);
+    const { project, prevProject, nextProject, relatedProjects } = data;
 
     return (
         <article className="editorial-container py-12 sm:py-20">
-            {/* BACK BREADCRUMB */}
             <div className="mb-8">
                 <Link
                     to="/projects"
@@ -61,7 +82,7 @@ export default function ProjectDetailPage() {
             {/* HEADER & METADATA */}
             <header className="border-b border-[#242629]/15 pb-10 mb-12">
                 <div className="flex flex-wrap items-center gap-3 text-xs font-mono uppercase tracking-widest text-[#657568] mb-4">
-                    <span>{project.category.name}</span>
+                    <span>{project.category?.name}</span>
                     <span>•</span>
                     <span>Year {project.year}</span>
                 </div>
@@ -103,7 +124,7 @@ export default function ProjectDetailPage() {
             {/* COVER IMAGE */}
             <div className="mb-16 border border-[#242629]/20 bg-white/50 p-2 sm:p-3">
                 <img
-                    src={project.coverImage.url}
+                    src={project.coverImage?.url}
                     alt={project.title}
                     className="w-full max-h-[620px] object-cover"
                 />
@@ -112,46 +133,52 @@ export default function ProjectDetailPage() {
             {/* CASE STUDY STRUCTURED BREAKDOWN */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 pb-16 border-b border-[#242629]/15">
                 <div className="lg:col-span-8 space-y-12">
-                    <section className="space-y-3">
-                        <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568]">
-                            01 / Context & Background
-                        </h2>
-                        <p className="text-base text-[#242629]/85 leading-relaxed">{project.background}</p>
-                    </section>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-y border-[#242629]/15 py-8">
+                    {project.background && (
                         <section className="space-y-3">
                             <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568]">
-                                02 / Problem Statement
+                                01 / Context & Background
                             </h2>
-                            <p className="text-sm sm:text-base text-[#242629]/85 leading-relaxed">
-                                {project.problem}
-                            </p>
+                            <p className="text-base text-[#242629]/85 leading-relaxed">{project.background}</p>
                         </section>
+                    )}
 
-                        <section className="space-y-3">
+                    {(project.problem || project.solution) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-y border-[#242629]/15 py-8">
+                            <section className="space-y-3">
+                                <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568]">
+                                    02 / Problem Statement
+                                </h2>
+                                <p className="text-sm sm:text-base text-[#242629]/85 leading-relaxed">
+                                    {project.problem}
+                                </p>
+                            </section>
+
+                            <section className="space-y-3">
+                                <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568]">
+                                    03 / Engineered Solution
+                                </h2>
+                                <p className="text-sm sm:text-base text-[#242629]/85 leading-relaxed">
+                                    {project.solution}
+                                </p>
+                            </section>
+                        </div>
+                    )}
+
+                    {project.features?.length > 0 && (
+                        <section className="space-y-4">
                             <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568]">
-                                03 / Engineered Solution
+                                04 / Key System Features
                             </h2>
-                            <p className="text-sm sm:text-base text-[#242629]/85 leading-relaxed">
-                                {project.solution}
-                            </p>
+                            <ul className="space-y-3">
+                                {project.features.map((feat, idx) => (
+                                    <li key={idx} className="flex items-start gap-3 text-sm sm:text-base">
+                                        <CheckSquare className="w-4 h-4 text-[#657568] shrink-0 mt-1" />
+                                        <span>{feat}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </section>
-                    </div>
-
-                    <section className="space-y-4">
-                        <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568]">
-                            04 / Key System Features
-                        </h2>
-                        <ul className="space-y-3">
-                            {project.features.map((feat, idx) => (
-                                <li key={idx} className="flex items-start gap-3 text-sm sm:text-base">
-                                    <CheckSquare className="w-4 h-4 text-[#657568] shrink-0 mt-1" />
-                                    <span>{feat}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
+                    )}
 
                     {project.challenges && (
                         <section className="border border-[#242629]/15 bg-white/40 p-6 sm:p-8 space-y-3">
@@ -173,7 +200,7 @@ export default function ProjectDetailPage() {
                                 Technology Stack
                             </p>
                             <div className="flex flex-wrap gap-2">
-                                {project.technologies.map((tech) => (
+                                {project.technologies?.map((tech) => (
                                     <span
                                         key={tech}
                                         className="font-mono text-xs px-3 py-1.5 border border-[#242629]/20 bg-[#F2F0EA]"
@@ -187,7 +214,7 @@ export default function ProjectDetailPage() {
                         <div className="border-t border-[#242629]/15 pt-4 space-y-2 text-xs font-mono">
                             <div className="flex justify-between">
                                 <span className="text-[#242629]/60">CATEGORY</span>
-                                <span>{project.category.name}</span>
+                                <span>{project.category?.name}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-[#242629]/60">RELEASE YEAR</span>
@@ -195,15 +222,15 @@ export default function ProjectDetailPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-[#242629]/60">STATUS</span>
-                                <span>{project.status}</span>
+                                <span className="uppercase">{project.status}</span>
                             </div>
                         </div>
                     </div>
                 </aside>
             </div>
 
-            {/* SCREENSHOT GALLERY WITH LIGHTBOX */}
-            {project.gallery && project.gallery.length > 0 && (
+            {/* SCREENSHOT GALLERY */}
+            {project.gallery?.length > 0 && (
                 <section className="py-16 border-b border-[#242629]/15">
                     <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-8">
                         06 / Interface & System Screenshots
@@ -211,7 +238,7 @@ export default function ProjectDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {project.gallery.map((img, idx) => (
                             <figure
-                                key={idx}
+                                key={img._id || idx}
                                 onClick={() => setLightboxImage(img)}
                                 className="group cursor-pointer border border-[#242629]/20 bg-white/50 overflow-hidden"
                             >
@@ -278,7 +305,7 @@ export default function ProjectDetailPage() {
             </nav>
 
             {/* RELATED PROJECTS */}
-            {relatedProjects.length > 0 && (
+            {relatedProjects?.length > 0 && (
                 <section className="pt-16">
                     <h2 className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-8">
                         Related Case Studies
@@ -290,7 +317,7 @@ export default function ProjectDetailPage() {
                                 to={`/projects/${rel.slug}`}
                                 className="group border border-[#242629]/20 p-6 bg-white/30 hover:border-[#657568] transition-colors"
                             >
-                                <span className="font-mono text-xs text-[#657568]">{rel.category.name}</span>
+                                <span className="font-mono text-xs text-[#657568]">{rel.category?.name}</span>
                                 <h3 className="font-display text-xl font-bold mt-1 group-hover:text-[#657568]">
                                     {rel.title}
                                 </h3>

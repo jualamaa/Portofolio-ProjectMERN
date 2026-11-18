@@ -7,17 +7,16 @@ import compression from 'compression';
 import morgan from 'morgan';
 import { env } from './config/env.js';
 import healthRoutes from './routes/healthRoutes.js';
+import publicRoutes from './routes/publicRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import { notFoundHandler, errorHandler } from './middleware/errorMiddleware.js';
 
 const app = express();
 
-// Trust proxy for Render / Railway deployment
 app.set('trust proxy', 1);
-
-// Security HTTP headers
 app.use(helmet());
 
-// Strict CORS configuration
 const allowedOrigins = env.clientUrl.split(',').map((origin) => origin.trim());
 app.use(
     cors({
@@ -33,24 +32,21 @@ app.use(
     })
 );
 
-// Body parsers & cookie parser
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
-
-// Prevent NoSQL query injection
 app.use(mongoSanitize());
-
-// Gzip compression
 app.use(compression());
 
-// Request logging
 if (!env.isProduction) {
     app.use(morgan('dev'));
 }
 
 // API v1 Routes
 app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1', publicRoutes);
 
 // Error Handling Middleware
 app.use(notFoundHandler);
