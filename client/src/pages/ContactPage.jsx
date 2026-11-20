@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Send, Mail, Github, Linkedin, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
-import SectionHeader from '../components/common/SectionHeader';
+import { Send, CheckCircle2, AlertCircle, Mail, MapPin, Github, Linkedin } from 'lucide-react';
 import { portfolioService } from '../services/portfolioService';
+import { contactService } from '../services/contactService';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function ContactPage() {
+    usePageMeta({
+        title: 'Contact',
+        description: 'Get in touch with Yoseph Ekarunio for software development and collaboration.',
+    });
     const [profile, setProfile] = useState(null);
     const [form, setForm] = useState({
         name: '',
         email: '',
         subject: '',
         message: '',
-        website: '',
+        website: '', // Honeypot field
     });
-
-    const [errors, setErrors] = useState({});
-    const [status, setStatus] = useState({ submitting: false, type: null, text: '' });
+    const [submitting, setSubmitting] = useState(false);
+    const [status, setStatus] = useState({ type: null, text: '' });
 
     useEffect(() => {
         portfolioService
@@ -23,99 +27,107 @@ export default function ContactPage() {
             .catch(() => { });
     }, []);
 
-    const validate = () => {
-        const nextErrors = {};
-        if (!form.name.trim() || form.name.trim().length < 2) {
-            nextErrors.name = 'Please enter your name (at least 2 characters).';
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-            nextErrors.email = 'Please provide a valid email address.';
-        }
-        if (!form.subject.trim() || form.subject.trim().length < 3) {
-            nextErrors.subject = 'Please specify a subject.';
-        }
-        if (!form.message.trim() || form.message.trim().length < 15) {
-            nextErrors.message = 'Message must be at least 15 characters long.';
-        }
-        setErrors(nextErrors);
-        return Object.keys(nextErrors).length === 0;
-    };
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
-        if (errors[name]) {
-            setErrors((prev) => ({ ...prev, [name]: null }));
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!validate()) return;
+        setStatus({ type: null, text: '' });
 
-        setStatus({ submitting: true, type: null, text: '' });
+        if (form.name.trim().length < 2) {
+            setStatus({ type: 'error', text: 'Please enter your full name (minimum 2 characters).' });
+            return;
+        }
+        if (!form.email.includes('@')) {
+            setStatus({ type: 'error', text: 'Please enter a valid email address.' });
+            return;
+        }
+        if (form.subject.trim().length < 3) {
+            setStatus({ type: 'error', text: 'Please provide a brief subject for your inquiry.' });
+            return;
+        }
+        if (form.message.trim().length < 10) {
+            setStatus({ type: 'error', text: 'Please write a message of at least 10 characters.' });
+            return;
+        }
 
-        setTimeout(() => {
+        setSubmitting(true);
+        try {
+            const res = await contactService.sendMessage(form);
             setStatus({
-                submitting: false,
                 type: 'success',
-                text: 'Your message has been validated. Full backend SMTP & MongoDB delivery will activate in Phase 06.',
+                text: res.message || 'Your message has been sent successfully.',
             });
             setForm({ name: '', email: '', subject: '', message: '', website: '' });
-        }, 500);
+        } catch (err) {
+            setStatus({
+                type: 'error',
+                text: err.response?.data?.message || 'Unable to send message right now. Please try again.',
+            });
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
-        <div className="editorial-container py-16 sm:py-24">
-            <SectionHeader
-                index="CONTACT /"
-                eyebrow="Direct Communication"
-                title="Initiate a Conversation"
-                description="Whether you are looking to collaborate on a web application, discuss technical architecture, or inquire about opportunities, send a direct message below."
-                theme="dark"
-            />
+        <div className="bg-[#F2F0EA] text-[#242629] min-h-screen">
+            <div className="max-w-6xl mx-auto px-6 py-20 sm:py-28">
+                {/* HEADER */}
+                <div className="max-w-3xl border-b border-[#242629]/15 pb-10 mb-14">
+                    <p className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-3">
+                        Direct Communication
+                    </p>
+                    <h1 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mb-4">
+                        Start a Conversation
+                    </h1>
+                    <p className="text-base sm:text-lg text-[#242629]/75 leading-relaxed">
+                        Have a software engineering project, IoT hardware integration, or collaboration in mind?
+                        Send a direct message below and it will be delivered straight to my inbox.
+                    </p>
+                </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                <div className="lg:col-span-5 space-y-8">
-                    <div className="border border-[#D9D4C9]/15 p-6 sm:p-8 space-y-6">
-                        <div>
-                            <p className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-2">
-                                Direct Email
-                            </p>
-                            <a
-                                href={`mailto:${profile?.email || 'contact@joseph.dev'}`}
-                                className="inline-flex items-center gap-2.5 text-base font-medium hover:text-[#657568] transition-colors"
-                            >
-                                <Mail className="w-4 h-4 text-[#657568]" />
-                                <span>{profile?.email || 'contact@joseph.dev'}</span>
-                            </a>
-                        </div>
-
-                        {profile?.location && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    {/* CONTACT INFO COLUMN */}
+                    <div className="lg:col-span-4 space-y-8">
+                        <div className="border border-[#242629]/15 bg-white/50 p-6 space-y-6">
                             <div>
-                                <p className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-2">
-                                    Base Location
+                                <p className="font-mono text-[11px] uppercase tracking-widest text-[#657568] mb-1">
+                                    Availability
                                 </p>
-                                <p className="inline-flex items-center gap-2.5 text-sm text-[#A5A39D]">
-                                    <MapPin className="w-4 h-4 text-[#657568]" />
-                                    <span>{profile.location}</span>
+                                <p className="text-sm font-semibold">
+                                    {profile?.availability || 'Open for Freelance & Collaboration'}
                                 </p>
                             </div>
-                        )}
 
-                        <div className="pt-4 border-t border-[#D9D4C9]/15">
-                            <p className="font-mono text-xs uppercase tracking-widest text-[#657568] mb-3">
-                                Developer Profiles
-                            </p>
-                            <div className="flex flex-wrap gap-3">
+                            <div>
+                                <p className="font-mono text-[11px] uppercase tracking-widest text-[#657568] mb-1">
+                                    Direct Email
+                                </p>
+                                <a
+                                    href={`mailto:${profile?.email || 'yosephekarunio@gmail.com'}`}
+                                    className="inline-flex items-center gap-2 text-sm font-medium hover:text-[#657568] transition-colors"
+                                >
+                                    <Mail className="w-4 h-4 text-[#657568]" />
+                                    <span>{profile?.email || 'yosephekarunio@gmail.com'}</span>
+                                </a>
+                            </div>
+
+                            <div>
+                                <p className="font-mono text-[11px] uppercase tracking-widest text-[#657568] mb-1">
+                                    Location
+                                </p>
+                                <p className="inline-flex items-center gap-2 text-sm text-[#242629]/80">
+                                    <MapPin className="w-4 h-4 text-[#657568]" />
+                                    <span>{profile?.location || 'Klaten, Central Java, Indonesia'}</span>
+                                </p>
+                            </div>
+
+                            <div className="pt-4 border-t border-[#242629]/15 flex items-center gap-3">
                                 {profile?.socialLinks?.github && (
                                     <a
                                         href={profile.socialLinks.github}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center gap-2 border border-[#D9D4C9]/25 px-4 py-2 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] transition-colors"
+                                        className="inline-flex items-center gap-1.5 border border-[#242629]/20 px-3 py-2 text-xs font-mono uppercase hover:bg-[#17191C] hover:text-[#F2F0EA] transition-colors"
                                     >
-                                        <Github className="w-4 h-4" />
+                                        <Github className="w-3.5 h-3.5" />
                                         <span>GitHub</span>
                                     </a>
                                 )}
@@ -124,139 +136,135 @@ export default function ContactPage() {
                                         href={profile.socialLinks.linkedin}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center gap-2 border border-[#D9D4C9]/25 px-4 py-2 text-xs font-mono uppercase tracking-wider hover:bg-[#657568] hover:border-[#657568] transition-colors"
+                                        className="inline-flex items-center gap-1.5 border border-[#242629]/20 px-3 py-2 text-xs font-mono uppercase hover:bg-[#17191C] hover:text-[#F2F0EA] transition-colors"
                                     >
-                                        <Linkedin className="w-4 h-4" />
+                                        <Linkedin className="w-3.5 h-3.5" />
                                         <span>LinkedIn</span>
                                     </a>
                                 )}
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="lg:col-span-7">
-                    <form
-                        onSubmit={handleSubmit}
-                        noValidate
-                        className="border border-[#D9D4C9]/15 p-6 sm:p-10 space-y-6"
-                    >
-                        <div className="hidden" aria-hidden="true">
-                            <label htmlFor="website">Website</label>
-                            <input
-                                type="text"
-                                id="website"
-                                name="website"
-                                tabIndex={-1}
-                                autoComplete="off"
-                                value={form.website}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            <div>
-                                <label
-                                    htmlFor="name"
-                                    className="block font-mono text-xs uppercase tracking-widest text-[#A5A39D] mb-2"
+                    {/* FORM COLUMN */}
+                    <div className="lg:col-span-8">
+                        <div className="border border-[#242629]/20 bg-white/60 p-6 sm:p-10">
+                            {status.text && (
+                                <div
+                                    className={`mb-6 p-4 border flex items-start gap-3 text-sm ${status.type === 'success'
+                                        ? 'border-[#657568] bg-[#657568]/15 text-[#242629]'
+                                        : 'border-red-600/40 bg-red-50 text-red-700'
+                                        }`}
                                 >
-                                    Your Name *
-                                </label>
-                                <input
-                                    id="name"
-                                    name="name"
-                                    type="text"
-                                    value={form.name}
-                                    onChange={handleChange}
-                                    placeholder="John Doe"
-                                    className="w-full bg-white/[0.03] border border-[#D9D4C9]/20 px-4 py-3 text-sm text-[#F2F0EA] focus:outline-none focus:border-[#657568]"
-                                />
-                                {errors.name && <p className="text-xs text-red-400 mt-1.5">{errors.name}</p>}
-                            </div>
+                                    {status.type === 'success' ? (
+                                        <CheckCircle2 className="w-5 h-5 text-[#657568] shrink-0 mt-0.5" />
+                                    ) : (
+                                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                                    )}
+                                    <span>{status.text}</span>
+                                </div>
+                            )}
 
-                            <div>
-                                <label
-                                    htmlFor="email"
-                                    className="block font-mono text-xs uppercase tracking-widest text-[#A5A39D] mb-2"
+                            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                                {/* Honeypot anti-spam trap (hidden from real users) */}
+                                <div className="hidden" aria-hidden="true">
+                                    <label htmlFor="website-field">Website</label>
+                                    <input
+                                        id="website-field"
+                                        type="text"
+                                        name="website"
+                                        tabIndex={-1}
+                                        autoComplete="off"
+                                        value={form.website}
+                                        onChange={(e) => setForm({ ...form, website: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div>
+                                        <label
+                                            htmlFor="contact-name"
+                                            className="block font-mono text-xs uppercase tracking-widest text-[#242629]/80 mb-2"
+                                        >
+                                            Your Name *
+                                        </label>
+                                        <input
+                                            id="contact-name"
+                                            type="text"
+                                            required
+                                            placeholder="John Doe"
+                                            value={form.name}
+                                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                            className="w-full bg-white border border-[#242629]/25 px-4 py-3 text-sm focus:outline-none focus:border-[#657568]"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            htmlFor="contact-email"
+                                            className="block font-mono text-xs uppercase tracking-widest text-[#242629]/80 mb-2"
+                                        >
+                                            Email Address *
+                                        </label>
+                                        <input
+                                            id="contact-email"
+                                            type="email"
+                                            required
+                                            placeholder="john@example.com"
+                                            value={form.email}
+                                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                                            className="w-full bg-white border border-[#242629]/25 px-4 py-3 text-sm focus:outline-none focus:border-[#657568]"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="contact-subject"
+                                        className="block font-mono text-xs uppercase tracking-widest text-[#242629]/80 mb-2"
+                                    >
+                                        Subject *
+                                    </label>
+                                    <input
+                                        id="contact-subject"
+                                        type="text"
+                                        required
+                                        placeholder="Web Application Inquiry / Collaboration"
+                                        value={form.subject}
+                                        onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                                        className="w-full bg-white border border-[#242629]/25 px-4 py-3 text-sm focus:outline-none focus:border-[#657568]"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="contact-message"
+                                        className="block font-mono text-xs uppercase tracking-widest text-[#242629]/80 mb-2"
+                                    >
+                                        Message *
+                                    </label>
+                                    <textarea
+                                        id="contact-message"
+                                        rows={6}
+                                        required
+                                        placeholder="Describe your project requirements, timeline, or question..."
+                                        value={form.message}
+                                        onChange={(e) => setForm({ ...form, message: e.target.value })}
+                                        className="w-full bg-white border border-[#242629]/25 px-4 py-3 text-sm focus:outline-none focus:border-[#657568]"
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="inline-flex items-center gap-2.5 bg-[#17191C] text-[#F2F0EA] px-8 py-3.5 text-xs font-mono font-semibold uppercase tracking-widest hover:bg-[#657568] transition-colors disabled:opacity-50"
                                 >
-                                    Email Address *
-                                </label>
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                    placeholder="john@example.com"
-                                    className="w-full bg-white/[0.03] border border-[#D9D4C9]/20 px-4 py-3 text-sm text-[#F2F0EA] focus:outline-none focus:border-[#657568]"
-                                />
-                                {errors.email && <p className="text-xs text-red-400 mt-1.5">{errors.email}</p>}
-                            </div>
+                                    <Send className="w-3.5 h-3.5" />
+                                    <span>{submitting ? 'Dispatching Message...' : 'Send Message'}</span>
+                                </button>
+                            </form>
                         </div>
-
-                        <div>
-                            <label
-                                htmlFor="subject"
-                                className="block font-mono text-xs uppercase tracking-widest text-[#A5A39D] mb-2"
-                            >
-                                Subject *
-                            </label>
-                            <input
-                                id="subject"
-                                name="subject"
-                                type="text"
-                                value={form.subject}
-                                onChange={handleChange}
-                                placeholder="Project inquiry or collaboration"
-                                className="w-full bg-white/[0.03] border border-[#D9D4C9]/20 px-4 py-3 text-sm text-[#F2F0EA] focus:outline-none focus:border-[#657568]"
-                            />
-                            {errors.subject && <p className="text-xs text-red-400 mt-1.5">{errors.subject}</p>}
-                        </div>
-
-                        <div>
-                            <label
-                                htmlFor="message"
-                                className="block font-mono text-xs uppercase tracking-widest text-[#A5A39D] mb-2"
-                            >
-                                Message *
-                            </label>
-                            <textarea
-                                id="message"
-                                name="message"
-                                rows={6}
-                                value={form.message}
-                                onChange={handleChange}
-                                placeholder="Describe your project goals, timeline, or message..."
-                                className="w-full bg-white/[0.03] border border-[#D9D4C9]/20 px-4 py-3 text-sm text-[#F2F0EA] focus:outline-none focus:border-[#657568]"
-                            />
-                            {errors.message && <p className="text-xs text-red-400 mt-1.5">{errors.message}</p>}
-                        </div>
-
-                        {status.text && (
-                            <div
-                                className={`p-4 border flex items-start gap-3 text-sm ${status.type === 'success'
-                                    ? 'border-[#657568] bg-[#657568]/15 text-[#F2F0EA]'
-                                    : 'border-red-500/40 bg-red-950/20 text-red-300'
-                                    }`}
-                            >
-                                {status.type === 'success' ? (
-                                    <CheckCircle2 className="w-5 h-5 text-[#657568] shrink-0 mt-0.5" />
-                                ) : (
-                                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                                )}
-                                <span>{status.text}</span>
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={status.submitting}
-                            className="inline-flex items-center gap-2.5 bg-[#F2F0EA] text-[#17191C] px-7 py-3.5 text-xs font-mono font-semibold uppercase tracking-widest hover:bg-[#657568] hover:text-[#F2F0EA] transition-colors disabled:opacity-50"
-                        >
-                            <Send className="w-4 h-4" />
-                            <span>{status.submitting ? 'Sending...' : 'Send Message'}</span>
-                        </button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>

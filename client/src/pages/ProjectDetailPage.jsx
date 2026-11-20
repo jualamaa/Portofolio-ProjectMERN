@@ -11,8 +11,14 @@ import {
 import ModalLightbox from '../components/ui/ModalLightbox';
 import { LoadingSkeleton, EmptyState } from '../components/common/StateFeedback';
 import { portfolioService } from '../services/portfolioService';
+import { usePageMeta } from '../hooks/usePageMeta';
+
 
 export default function ProjectDetailPage() {
+    usePageMeta({
+        title: project?.title || 'Project Case Study',
+        description: project?.shortDescription || 'Detailed engineering case study.',
+    });
     const { slug } = useParams();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);

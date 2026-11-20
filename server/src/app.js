@@ -10,6 +10,7 @@ import healthRoutes from './routes/healthRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
 import { notFoundHandler, errorHandler } from './middleware/errorMiddleware.js';
 
 const app = express();
@@ -46,6 +47,7 @@ if (!env.isProduction) {
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1', publicRoutes);
 
 // Error Handling Middleware

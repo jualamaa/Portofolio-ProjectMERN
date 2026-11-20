@@ -3,8 +3,14 @@ import { Github, Linkedin, Mail, MapPin, GraduationCap, Compass } from 'lucide-r
 import SectionHeader from '../components/common/SectionHeader';
 import { LoadingSkeleton, ErrorState } from '../components/common/StateFeedback';
 import { portfolioService } from '../services/portfolioService';
+import { usePageMeta } from '../hooks/usePageMeta';
+
 
 export default function AboutPage() {
+    usePageMeta({
+        title: 'About',
+        description: 'Background, technical skills, education, and engineering journey of Yoseph Ekarunio.',
+    });
     const [profile, setProfile] = useState(null);
     const [skills, setSkills] = useState([]);
     const [loading, setLoading] = useState(true);

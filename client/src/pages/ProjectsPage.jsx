@@ -4,8 +4,13 @@ import { Search, ArrowUpRight } from 'lucide-react';
 import SectionHeader from '../components/common/SectionHeader';
 import { LoadingSkeleton, EmptyState, ErrorState } from '../components/common/StateFeedback';
 import { portfolioService } from '../services/portfolioService';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function ProjectsPage() {
+    usePageMeta({
+        title: 'Projects',
+        description: 'Case studies of fullstack web applications, database systems, and IoT prototypes.',
+    });
     const [projects, setProjects] = useState([]);
     const [categories, setCategories] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -57,8 +62,8 @@ export default function ProjectsPage() {
                         type="button"
                         onClick={() => setSelectedCategory('all')}
                         className={`px-4 py-2 text-xs font-mono uppercase tracking-wider border transition-colors ${selectedCategory === 'all'
-                                ? 'bg-[#657568] border-[#657568] text-[#F2F0EA]'
-                                : 'border-[#D9D4C9]/20 text-[#A5A39D] hover:border-[#F2F0EA] hover:text-[#F2F0EA]'
+                            ? 'bg-[#657568] border-[#657568] text-[#F2F0EA]'
+                            : 'border-[#D9D4C9]/20 text-[#A5A39D] hover:border-[#F2F0EA] hover:text-[#F2F0EA]'
                             }`}
                     >
                         All Works
@@ -69,8 +74,8 @@ export default function ProjectsPage() {
                             type="button"
                             onClick={() => setSelectedCategory(cat.slug)}
                             className={`px-4 py-2 text-xs font-mono uppercase tracking-wider border transition-colors ${selectedCategory === cat.slug
-                                    ? 'bg-[#657568] border-[#657568] text-[#F2F0EA]'
-                                    : 'border-[#D9D4C9]/20 text-[#A5A39D] hover:border-[#F2F0EA] hover:text-[#F2F0EA]'
+                                ? 'bg-[#657568] border-[#657568] text-[#F2F0EA]'
+                                : 'border-[#D9D4C9]/20 text-[#A5A39D] hover:border-[#F2F0EA] hover:text-[#F2F0EA]'
                                 }`}
                         >
                             {cat.name}

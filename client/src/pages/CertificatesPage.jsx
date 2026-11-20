@@ -4,8 +4,13 @@ import SectionHeader from '../components/common/SectionHeader';
 import ModalLightbox from '../components/ui/ModalLightbox';
 import { LoadingSkeleton, EmptyState, ErrorState } from '../components/common/StateFeedback';
 import { portfolioService } from '../services/portfolioService';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function CertificatesPage() {
+    usePageMeta({
+        title: 'Certificates',
+        description: 'Verified certifications in web development, networking, and embedded IoT systems.',
+    });
     const [certificates, setCertificates] = useState([]);
     const [categories, setCategories] = useState([]);
     const [years, setYears] = useState([]);

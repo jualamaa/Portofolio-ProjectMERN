@@ -4,8 +4,13 @@ import { ArrowRight, ArrowUpRight, MapPin, CircleDot, Terminal, Layers } from 'l
 import SectionHeader from '../components/common/SectionHeader';
 import { LoadingSkeleton, EmptyState, ErrorState } from '../components/common/StateFeedback';
 import { portfolioService } from '../services/portfolioService';
+import { usePageMeta } from '../hooks/usePageMeta';
 
 export default function HomePage() {
+    usePageMeta({
+        title: 'Home',
+        description: 'Portfolio of Yoseph Ekarunio — Fullstack Web Developer & IoT Engineer.',
+    });
     const [profile, setProfile] = useState(null);
     const [featuredProjects, setFeaturedProjects] = useState([]);
     const [skills, setSkills] = useState([]);
