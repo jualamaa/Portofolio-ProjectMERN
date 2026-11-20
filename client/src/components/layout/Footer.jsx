@@ -111,7 +111,6 @@ export default function Footer({ theme = 'dark' }) {
                             className="inline-flex items-center gap-1 opacity-50 hover:opacity-100 hover:text-[#657568] transition-opacity"
                         >
                             <Lock className="w-3 h-3" />
-                            <span>Admin</span>
                         </Link>
                     </div>
 
